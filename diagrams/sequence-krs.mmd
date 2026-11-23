@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor MHS as Mahasiswa
+    participant UI as Portal KRS
+    participant KrsSvc as EnrollmentService
+    participant Val as KRSValidator
+    participant DB as Database
+    participant Notif as NotificationService
+    actor PA as Dosen PA
+
+    MHS->>UI: Pilih daftar kelas & klik Submit KRS
+    UI->>KrsSvc: submitKRS(nim, semester, listScheduleId)
+    KrsSvc->>DB: getRiwayatNilaiDanJadwal(nim, semester)
+    DB-->>KrsSvc: riwayatGrade, detailKelasDipilih
+
+    KrsSvc->>Val: validateAll(enrollment)
+    Val->>Val: 1. MaxSKSValidationRule (totalSKS <= 24)
+    Val->>Val: 2. PrerequisiteValidationRule (cek nilai lulus MK prasyarat)
+    Val->>Val: 3. ScheduleConflictValidationRule (cek hari & jam bentrok)
+
+    alt Validasi Gagal (SKS > 24 / Prasyarat Kurang / Jadwal Bentrok)
+        Val-->>KrsSvc: ValidationResult(valid=false, daftarError)
+        KrsSvc-->>UI: HTTP 422 (Rincian pelanggaran aturan KRS)
+        UI-->>MHS: Tampilkan alasan penolakan (prasyarat/SKS/bentrok)
+    else Semua Aturan Validasi Lulus
+        Val-->>KrsSvc: ValidationResult(valid=true)
+        KrsSvc->>DB: simpanEnrollment(status="Pending Approval")
+        DB-->>KrsSvc: enrollmentId
+        KrsSvc->>Notif: kirimNotifikasiApproval(dosenPAId, enrollmentId)
+        Notif-->>PA: Notifikasi: Mahasiswa mengajukan KRS baru
+        KrsSvc-->>UI: HTTP 200 (Status: Pending Approval)
+        UI-->>MHS: Tampilkan status KRS menunggu persetujuan Dosen PA
+    end

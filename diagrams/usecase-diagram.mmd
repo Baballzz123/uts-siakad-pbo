@@ -1,0 +1,58 @@
+flowchart LR
+    %% Aktor
+    CM(["Calon Mahasiswa"])
+    MHS(["Mahasiswa"])
+    DSN(["Dosen"])
+    ADM(["Admin Akademik"])
+    PMB(["Sistem PMB"])
+
+    subgraph SIAKAD["Sistem Informasi Akademik (SEVIMA-Mini)"]
+        direction TB
+        UC_LOGIN(("Autentikasi Login"))
+
+        %% Modul PMB
+        UC_DAFTAR(("Daftar Kuliah & Upload Berkas"))
+        UC_BAYAR_PMB(("Bayar Biaya Pendaftaran"))
+        UC_SELEKSI(("Verifikasi & Generate NIM"))
+
+        %% Modul KRS & Jadwal
+        UC_KRS(("Isi & Submit KRS"))
+        UC_VALID_KRS(("Validasi Prasyarat, SKS & Bentrok"))
+        UC_APPROVE_KRS(("Approve / Tolak KRS"))
+        UC_JADWAL(("Lihat Jadwal Kuliah"))
+        UC_KELOLA_MK(("Kelola Mata Kuliah & Jadwal"))
+
+        %% Modul Nilai & Transkrip
+        UC_INPUT_NILAI(("Input Nilai Akhir"))
+        UC_REVISI_NILAI(("Revisi Nilai & Catat Audit Trail"))
+        UC_TRANSKRIP(("Lihat Transkrip & Hitung IPS/IPK"))
+        UC_CETAK_PDF(("Export Transkrip PDF / CSV"))
+    end
+
+    %% Relasi Aktor -> Use Case
+    CM --> UC_DAFTAR
+    CM --> UC_BAYAR_PMB
+    PMB --> UC_SELEKSI
+    ADM --> UC_SELEKSI
+    ADM --> UC_KELOLA_MK
+    ADM --> UC_CETAK_PDF
+
+    MHS --> UC_KRS
+    MHS --> UC_JADWAL
+    MHS --> UC_TRANSKRIP
+
+    DSN --> UC_APPROVE_KRS
+    DSN --> UC_INPUT_NILAI
+    DSN --> UC_REVISI_NILAI
+
+    %% Relasi <<include>>
+    UC_DAFTAR -.->|"&lt;&lt;include&gt;&gt;"| UC_BAYAR_PMB
+    UC_KRS -.->|"&lt;&lt;include&gt;&gt;"| UC_LOGIN
+    UC_KRS -.->|"&lt;&lt;include&gt;&gt;"| UC_VALID_KRS
+    UC_APPROVE_KRS -.->|"&lt;&lt;include&gt;&gt;"| UC_LOGIN
+    UC_INPUT_NILAI -.->|"&lt;&lt;include&gt;&gt;"| UC_LOGIN
+    UC_TRANSKRIP -.->|"&lt;&lt;include&gt;&gt;"| UC_LOGIN
+
+    %% Relasi <<extend>>
+    UC_CETAK_PDF -.->|"&lt;&lt;extend&gt;&gt;"| UC_TRANSKRIP
+    UC_REVISI_NILAI -.->|"&lt;&lt;extend&gt;&gt;"| UC_INPUT_NILAI

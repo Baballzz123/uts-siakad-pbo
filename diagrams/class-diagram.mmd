@@ -1,0 +1,170 @@
+classDiagram
+    direction TB
+
+    class User {
+        <<abstract>>
+        #String userId
+        #String nama
+        #String email
+        -String passwordHash
+        +login(email: String, password: String) bool
+        +logout() void
+        +updateProfile(nama: String, email: String) void
+    }
+
+    class CalonMahasiswa {
+        -String noPendaftaran
+        -String jalurMasuk
+        -String statusSeleksi
+        +daftarPMB(dataBerkas: Map) String
+        +uploadDokumen(jenis: String, fileUrl: String) bool
+        +cekStatusKelulusan() String
+    }
+
+    class Mahasiswa {
+        -String nim
+        -String prodi
+        -int angkatan
+        -String statusAktif
+        +ajukanKRS(semester: String) Enrollment
+        +lihatJadwal(semester: String) List~Schedule~
+        +lihatTranskrip() Transcript
+    }
+
+    class Dosen {
+        -String nidn
+        -String jabatanFungsional
+        -String keahlian
+        +approveKRS(enrollmentId: String) bool
+        +inputNilai(scheduleId: String, nim: String, nilaiAngka: Decimal) Grade
+        +revisiNilai(gradeId: String, nilaiBaru: Decimal, alasan: String) Grade
+    }
+
+    class Admin {
+        -String adminId
+        -String unitKerja
+        +kelolaMataKuliah(course: Course) void
+        +aturJadwalKelas(schedule: Schedule) void
+        +verifikasiPembayaran(paymentId: String) bool
+        +generateTranskripResmi(nim: String) Transcript
+    }
+
+    class Payment {
+        -String paymentId
+        -String jenisTagihan
+        -Decimal nominal
+        -String statusBayar
+        -DateTime tanggalBayar
+        +buatTagihan(nominal: Decimal) void
+        +konfirmasiPembayaran(buktiUrl: String) bool
+        +isLunas() bool
+    }
+
+    class Course {
+        -String kodeMK
+        -String namaMK
+        -int sks
+        -int semesterPaket
+        +getInfoMK() String
+        +tambahPrasyarat(prasyaratMK: Course, minHuruf: String) void
+    }
+
+    class CoursePrerequisite {
+        -String prereqId
+        -String nilaiMinimum
+        +terpenuhiOleh(riwayatNilai: List~Grade~) bool
+    }
+
+    class Schedule {
+        -String scheduleId
+        -String semester
+        -String hari
+        -Time jamMulai
+        -Time jamSelesai
+        -String ruangan
+        -int kuotaMaksimal
+        +cekBentrokDengan(other: Schedule) bool
+        +sisaKuota() int
+    }
+
+    class Enrollment {
+        -String enrollmentId
+        -String semester
+        -String statusKRS
+        -DateTime tanggalSubmit
+        +tambahKelas(schedule: Schedule) EnrollmentDetail
+        +hapusKelas(scheduleId: String) void
+        +hitungTotalSKS() int
+        +submitKRS(validator: KRSValidator) bool
+    }
+
+    class EnrollmentDetail {
+        -String detailId
+        -String statusAmbil
+        +getSKS() int
+    }
+
+    class Grade {
+        -String gradeId
+        -Decimal nilaiAngka
+        -String nilaiHuruf
+        -Decimal bobotMutu
+        -bool statusLulus
+        +konversiHuruf(angka: Decimal) String
+        +hitungMutu(sks: int) Decimal
+    }
+
+    class KRSValidator {
+        -List~IValidationRule~ rules
+        +addRule(rule: IValidationRule) void
+        +validateAll(enrollment: Enrollment) ValidationResult
+    }
+
+    class IValidationRule {
+        <<interface>>
+        +validate(enrollment: Enrollment) bool
+        +getErrorMessage() String
+    }
+
+    class MaxSKSValidationRule {
+        -int batasMaksSKS
+        +validate(enrollment: Enrollment) bool
+        +getErrorMessage() String
+    }
+
+    class PrerequisiteValidationRule {
+        +validate(enrollment: Enrollment) bool
+        +getErrorMessage() String
+    }
+
+    class ScheduleConflictValidationRule {
+        +validate(enrollment: Enrollment) bool
+        +getErrorMessage() String
+    }
+
+    %% Inheritance
+    User <|-- CalonMahasiswa
+    User <|-- Mahasiswa
+    User <|-- Dosen
+    User <|-- Admin
+
+    %% Realization (Strategy Pattern)
+    IValidationRule <|.. MaxSKSValidationRule
+    IValidationRule <|.. PrerequisiteValidationRule
+    IValidationRule <|.. ScheduleConflictValidationRule
+
+    %% Composition (Strong ownership)
+    Course "1" *-- "0..*" CoursePrerequisite : mensyaratkan
+    Enrollment "1" *-- "1..*" EnrollmentDetail : terdiri dari
+    EnrollmentDetail "1" *-- "0..1" Grade : menghasilkan
+    KRSValidator "1" *-- "1..*" IValidationRule : menjalankan
+
+    %% Aggregation & Association
+    CalonMahasiswa "1" o-- "1..*" Payment : membayar pendaftaran
+    Mahasiswa "1" o-- "0..*" Payment : membayar UKT
+    Mahasiswa "1" o-- "0..*" Enrollment : memiliki KRS
+    Dosen "1" o-- "0..*" Mahasiswa : membimbing PA
+    Dosen "1" o-- "0..*" Schedule : mengampu
+    Course "1" o-- "0..*" Schedule : dijadwalkan pada
+    EnrollmentDetail "0..*" --> "1" Schedule : memilih kelas
+    Enrollment ..> KRSValidator : divalidasi oleh

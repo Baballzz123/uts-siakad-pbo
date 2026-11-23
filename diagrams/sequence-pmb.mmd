@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    actor CM as CalonMahasiswa
+    participant Web as Portal PMB
+    participant Svc as PMBService
+    participant Pay as PaymentService
+    participant DB as Database
+
+    CM->>Web: Isi formulir & upload berkas pendaftaran
+    Web->>Svc: submitPendaftaran(dataDiri, dokumen)
+    Svc->>Svc: validasiKelengkapanBerkas(dokumen)
+
+    alt Berkas Tidak Lengkap / Format Salah
+        Svc-->>Web: Error 422 (Berkas tidak valid)
+        Web-->>CM: Tampilkan pesan error & minta lengkapi berkas
+    else Berkas Lengkap & Valid
+        Svc->>DB: simpanCalonMahasiswa(status="MENUNGGU_BAYAR")
+        DB-->>Svc: noPendaftaran
+        Svc->>Pay: buatTagihanPendaftaran(noPendaftaran, nominal)
+        Pay->>DB: insertPayment(status="UNPAID")
+        DB-->>Pay: paymentId
+        Pay-->>Svc: kodeVirtualAccount
+        Svc-->>Web: Pendaftaran berhasil + instruksi pembayaran
+        Web-->>CM: Tampilkan nomor pendaftaran & VA pembayaran
+
+        CM->>Pay: Konfirmasi pembayaran biaya pendaftaran
+        Pay->>DB: updatePayment(status="LUNAS")
+        DB-->>Pay: ok
+        Pay->>Svc: triggerVerifikasiSeleksi(noPendaftaran)
+
+        alt Lulus Seleksi & Pembayaran Lunas
+            Svc->>Svc: generateNIM(prodi, angkatan)
+            Svc->>DB: insertMahasiswa(nim, status="AKTIF")
+            DB-->>Svc: ok
+            Svc-->>Web: Status="DITERIMA" + NIM aktif
+            Web-->>CM: Kirim notifikasi kelulusan & akun SIAKAD
+        else Tidak Lulus Seleksi
+            Svc->>DB: updateStatusSeleksi("TIDAK_LULUS")
+            Svc-->>Web: Status="TIDAK_LULUS"
+            Web-->>CM: Tampilkan pengumuman hasil seleksi
+        end
+    end
